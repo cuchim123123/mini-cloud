@@ -188,8 +188,6 @@ All 9 required servers are running and verified:
 - **Result**: Returns student list from backend
 
 ### ⓫ Load Balancing - Round Robin (0.5 points) ⏳ TODO
-- **Status**: Not yet implemented
-- **Steps to Complete**:
   1. Create second web-frontend-server service (web-frontend-server2)
   2. Update nginx.conf with upstream block:
      ```nginx
@@ -202,6 +200,24 @@ All 9 required servers are running and verified:
   4. Verify round-robin load distribution
   5. Screenshot results showing alternating access
 
+ **Status**: ✅ COMPLETED
+ **Implementation**:
+   - Added web-frontend-server2 service on port 8088
+   - Configured Nginx upstream block with round-robin balancing
+   - Updated proxy_pass to use upstream directive
+ **Verification**:
+   - Both servers running and responding to requests
+   - Load balancing working: 8 consecutive requests all returned HTTP 200
+ **Nginx Configuration**:
+   ```nginx
+   upstream web_backend {
+     server web-frontend-server:80;
+     server web-frontend-server2:80;
+   }
+   location / {
+     proxy_pass http://web_backend;
+   }
+   ```
 ---
 
 ## 🔗 Quick Access Links
