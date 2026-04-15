@@ -1,21 +1,17 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY tsconfig.json tsconfig.build.json ./
-COPY prisma ./prisma
 COPY src ./src
 COPY students.json ./students.json
-RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/students.json ./students.json
 EXPOSE 8081
 CMD ["node", "dist/main.js"]

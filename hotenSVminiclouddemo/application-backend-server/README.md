@@ -6,13 +6,12 @@ NestJS backend for MyMiniCloud.
 
 - `GET /hello` → health-style hello JSON
 - `GET /student` → returns student list from `students.json`
-- `GET /students-db` → returns seeded data from PostgreSQL via Prisma
+- `GET /students-db` → returns seeded data from PostgreSQL via `pg`
 
 ## Local Run
 
 ```bash
 npm install
-npm run prisma:generate
 npm run dev
 ```
 

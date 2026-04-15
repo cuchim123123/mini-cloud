@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PrismaService } from './prisma.service';
+import { PostgresService } from './postgres.service';
 
 type Student = {
   id: string;
@@ -12,7 +12,7 @@ type Student = {
 
 @Injectable()
 export class AppService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly postgresService: PostgresService) {}
 
   getHello() {
     return { message: 'Hello from App Server!' };
@@ -25,9 +25,11 @@ export class AppService {
   }
 
   async getStudentsFromDb() {
-    const notes = await this.prisma.note.findMany({
-      orderBy: { id: 'asc' }
-    });
+    const notes = await this.postgresService.query<{
+      id: number;
+      title: string;
+      created_at: string;
+    }>('SELECT id, title, created_at FROM notes ORDER BY id ASC');
 
     return { data: notes };
   }
