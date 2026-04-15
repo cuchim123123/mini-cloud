@@ -48,3 +48,35 @@ services:
     networks:
       - cloud-net
     restart: unless-stopped
+
+  authentication-identity-server:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: authentication-identity-server
+    command: ["start-dev"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    networks:
+      - cloud-net
+    restart: unless-stopped
+
+  object-storage-server:
+    image: minio/minio
+    container_name: object-storage-server
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./object-storage-server/data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - cloud-net
+    restart: unless-stopped
