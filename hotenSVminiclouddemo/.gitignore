@@ -1,0 +1,85 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependency directories
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.exe
+*.dll
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Package manager locks (optional - uncomment if using)
+# package-lock.json
+# yarn.lock
+
+# Secrets that should never be committed
+/secrets/
+*.pem
+*.key
+*.cert
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+
+# MinIO data (comment out if tracking locally)
+minio-data/
+
+# Grafana data
+grafana-data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
