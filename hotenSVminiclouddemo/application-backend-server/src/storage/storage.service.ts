@@ -12,15 +12,22 @@ export class StorageService {
     const objectKey = `${this.options.objectPrefix}/${Date.now()}-${randomUUID().slice(0, 8)}-${sanitizedFilename}`;
     const internalObjectPath = `/${this.options.bucketName}/${this.encodePath(objectKey)}`;
     const publicObjectPath = `/storage/${this.options.bucketName}/${this.encodePath(objectKey)}`;
+    const publicBaseUrl = this.normalizePublicBaseUrl(this.options.publicBaseUrl);
 
     return {
       uploadUrl: this.buildPresignedPutUrl({
-        host: new URL(this.options.publicBaseUrl).host,
+        host: new URL(publicBaseUrl).host,
+        baseUrl: publicBaseUrl,
         canonicalPath: internalObjectPath,
         publicPath: publicObjectPath,
         contentType
       }),
-      publicUrl: this.joinUrl(this.options.publicBaseUrl, `storage/${this.options.bucketName}/${this.encodePath(objectKey)}`),
+      publicUrl: this.buildPresignedGetUrl({
+        host: new URL(publicBaseUrl).host,
+        baseUrl: publicBaseUrl,
+        canonicalPath: internalObjectPath,
+        publicPath: publicObjectPath
+      }),
       bucket: this.options.bucketName,
       objectKey,
       headers: {
@@ -31,6 +38,7 @@ export class StorageService {
 
   private buildPresignedPutUrl(input: {
     host: string;
+    baseUrl: string;
     canonicalPath: string;
     publicPath: string;
     contentType: string;
@@ -63,7 +71,44 @@ export class StorageService {
     const signingKey = this.getSigningKey(this.options.secretKey, dateStamp, region, 's3');
     const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
 
-    return `${this.joinUrl(this.options.publicBaseUrl, input.publicPath)}?${canonicalQuery}&X-Amz-Signature=${signature}`;
+    return `${this.joinUrl(input.baseUrl, input.publicPath)}?${canonicalQuery}&X-Amz-Signature=${signature}`;
+  }
+
+  private buildPresignedGetUrl(input: {
+    host: string;
+    baseUrl: string;
+    canonicalPath: string;
+    publicPath: string;
+  }): string {
+    const method = 'GET';
+    const region = this.options.region ?? 'us-east-1';
+    const now = new Date();
+    const amzDate = this.toAmzDate(now);
+    const dateStamp = amzDate.slice(0, 8);
+    const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
+    const signedHeaders = 'host';
+    const queryParams: Array<[string, string]> = [
+      ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
+      ['X-Amz-Credential', `${this.options.accessKey}/${credentialScope}`],
+      ['X-Amz-Date', amzDate],
+      ['X-Amz-Expires', '900'],
+      ['X-Amz-SignedHeaders', signedHeaders]
+    ];
+
+    const canonicalQuery = this.buildCanonicalQuery(queryParams);
+    const canonicalHeaders = `host:${input.host.toLowerCase()}\n`;
+    const canonicalRequest = [method, input.canonicalPath, canonicalQuery, canonicalHeaders, signedHeaders, 'UNSIGNED-PAYLOAD'].join('\n');
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      credentialScope,
+      createHash('sha256').update(canonicalRequest).digest('hex')
+    ].join('\n');
+
+    const signingKey = this.getSigningKey(this.options.secretKey, dateStamp, region, 's3');
+    const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+
+    return `${this.joinUrl(input.baseUrl, input.publicPath)}?${canonicalQuery}&X-Amz-Signature=${signature}`;
   }
 
   private getSigningKey(secretKey: string, dateStamp: string, regionName: string, serviceName: string): Buffer {
@@ -110,6 +155,15 @@ export class StorageService {
     const normalizedBase = baseUrl.replace(/\/$/, '');
     const normalizedPath = pathValue.startsWith('/') ? pathValue : `/${pathValue}`;
     return `${normalizedBase}${normalizedPath}`;
+  }
+
+  private normalizePublicBaseUrl(baseUrl: string): string {
+    const normalized = baseUrl.replace(/\/$/, '');
+    if (normalized.endsWith('/storage')) {
+      return normalized.slice(0, -'/storage'.length);
+    }
+
+    return normalized;
   }
 
   private toAmzDate(date: Date): string {
