@@ -1,4 +1,3 @@
-import base64
 import json
 import os
 import time
@@ -15,6 +14,10 @@ REALM_NAME = "realm_sv001"
 OLD_CLIENT_ID = "flask-app"
 NEW_CLIENT_ID = "nestjs"
 SMOKE_CLIENT_ID = "smoke-ci"
+ADMIN_ROLE_NAME = "admin"
+SMOKE_CLIENT_SECRET = "smoke-ci-secret"
+REALM_FRONTEND_URL = "http://authentication-identity-server:8080/"
+SV01_USERNAME = "sv01"
 
 
 DESIRED_CLIENT = {
@@ -41,7 +44,7 @@ SMOKE_CLIENT = {
     "standardFlowEnabled": True,
     "directAccessGrantsEnabled": True,
     "serviceAccountsEnabled": True,
-    "secret": "smoke-ci-secret",
+    "secret": SMOKE_CLIENT_SECRET,
 }
 
 
@@ -60,6 +63,15 @@ def request_json(method, url, data=None, headers=None):
     return json.loads(body)
 
 
+def request_json_or_none(method, url, data=None, headers=None):
+    try:
+        return request_json(method, url, data=data, headers=headers)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
+
+
 def get_admin_token():
     payload = urllib.parse.urlencode({
         "grant_type": "password",
@@ -74,6 +86,200 @@ def get_admin_token():
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     return json.loads(response)["access_token"]
+
+
+def get_single_client(headers, client_id):
+    clients = request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={client_id}",
+        headers=headers,
+    ) or []
+    if not clients:
+        return None
+    return clients[0]
+
+
+def ensure_client(headers, desired_client):
+    existing = get_single_client(headers, desired_client["clientId"])
+    payload = json.dumps(desired_client).encode("utf-8")
+    if not existing:
+        request(
+            "POST",
+            f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients",
+            data=payload,
+            headers={
+                "Authorization": headers["Authorization"],
+                "Content-Type": "application/json",
+            },
+        )
+        return get_single_client(headers, desired_client["clientId"])
+
+    request(
+        "PUT",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{existing['id']}",
+        data=payload,
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
+    return get_single_client(headers, desired_client["clientId"])
+
+
+def ensure_admin_role(headers):
+    role = request_json_or_none(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/roles/{ADMIN_ROLE_NAME}",
+        headers=headers,
+    )
+    if role:
+        return role
+
+    role_payload = {
+        "name": ADMIN_ROLE_NAME,
+        "description": "Administrator role",
+    }
+    request(
+        "POST",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/roles",
+        data=json.dumps(role_payload).encode("utf-8"),
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
+    return request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/roles/{ADMIN_ROLE_NAME}",
+        headers=headers,
+    )
+
+
+def ensure_sv01_ready(headers, admin_role):
+    users = request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users?username={SV01_USERNAME}",
+        headers=headers,
+    ) or []
+    if not users:
+        return
+
+    user = users[0]
+    user_id = user["id"]
+    update_payload = {
+        "username": SV01_USERNAME,
+        "enabled": True,
+        "emailVerified": True,
+        "email": "sv01@example.local",
+        "firstName": user.get("firstName", "SV"),
+        "lastName": user.get("lastName", "01"),
+        "requiredActions": [],
+    }
+    request(
+        "PUT",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users/{user_id}",
+        data=json.dumps(update_payload).encode("utf-8"),
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
+
+    mapped_roles = request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users/{user_id}/role-mappings/realm",
+        headers=headers,
+    ) or []
+    has_admin = any(role.get("name") == ADMIN_ROLE_NAME for role in mapped_roles)
+    if has_admin:
+        return
+
+    request(
+        "POST",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users/{user_id}/role-mappings/realm",
+        data=json.dumps([admin_role]).encode("utf-8"),
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
+
+
+def ensure_audience_mapper(headers, client_id):
+    mappers = request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{client_id}/protocol-mappers/models",
+        headers=headers,
+    ) or []
+    mapper_payload = {
+        "name": "aud-myapp",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": False,
+        "config": {
+            "included.client.audience": "myapp",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+        }
+    }
+    existing = next((mapper for mapper in mappers if mapper.get("name") == "aud-myapp"), None)
+    if not existing:
+        request(
+            "POST",
+            f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{client_id}/protocol-mappers/models",
+            data=json.dumps(mapper_payload).encode("utf-8"),
+            headers={
+                "Authorization": headers["Authorization"],
+                "Content-Type": "application/json",
+            },
+        )
+        return
+
+    existing.update({
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": False,
+        "config": mapper_payload["config"],
+    })
+    request(
+        "PUT",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{client_id}/protocol-mappers/models/{existing['id']}",
+        data=json.dumps(existing).encode("utf-8"),
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
+
+
+def ensure_smoke_service_account_admin(headers, smoke_client_id, admin_role):
+    service_user = request_json_or_none(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{smoke_client_id}/service-account-user",
+        headers=headers,
+    )
+    if not service_user:
+        return
+
+    service_user_id = service_user["id"]
+    role_mappings = request_json(
+        "GET",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users/{service_user_id}/role-mappings/realm",
+        headers=headers,
+    ) or []
+    has_admin = any(role.get("name") == ADMIN_ROLE_NAME for role in role_mappings)
+    if has_admin:
+        return
+
+    request(
+        "POST",
+        f"{SERVER_URL}/admin/realms/{REALM_NAME}/users/{service_user_id}/role-mappings/realm",
+        data=json.dumps([admin_role]).encode("utf-8"),
+        headers={
+            "Authorization": headers["Authorization"],
+            "Content-Type": "application/json",
+        },
+    )
 
 
 def main():
@@ -109,14 +315,13 @@ def main():
             },
         )
 
-    # Step 1: Update realm attributes (frontendUrl)
     realm_response = request_json(
         "GET",
         f"{SERVER_URL}/admin/realms/{REALM_NAME}",
         headers=headers,
     )
     realm_response.setdefault("attributes", {})
-    realm_response["attributes"]["frontendUrl"] = "http://authentication-identity-server:8080"
+    realm_response["attributes"]["frontendUrl"] = REALM_FRONTEND_URL
     request(
         "PUT",
         f"{SERVER_URL}/admin/realms/{REALM_NAME}",
@@ -126,9 +331,8 @@ def main():
             "Content-Type": "application/json",
         },
     )
-    print("[BOOTSTRAP] Updated realm frontendUrl to http://authentication-identity-server:8080")
+    print("[BOOTSTRAP] Updated realm frontendUrl")
 
-    # Step 2: Remove old clients
     old_clients = request_json(
         "GET",
         f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={OLD_CLIENT_ID}",
@@ -143,144 +347,17 @@ def main():
                 headers=headers,
             )
 
-    # Step 3: Setup nestjs client
-    new_clients = request_json(
-        "GET",
-        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={NEW_CLIENT_ID}",
-        headers=headers,
-    ) or []
+    nestjs_client = ensure_client(headers, DESIRED_CLIENT)
+    if nestjs_client:
+        ensure_audience_mapper(headers, nestjs_client["id"])
+        print("[BOOTSTRAP] Ensured nestjs client + audience mapper")
 
-    payload = json.dumps(DESIRED_CLIENT).encode("utf-8")
-    if not new_clients:
-        request(
-            "POST",
-            f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-    else:
-        client_id = new_clients[0].get("id")
-        if client_id:
-            request(
-                "PUT",
-                f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{client_id}",
-                data=payload,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-            )
-
-    # Step 4: Add audience protocol mapper to nestjs client
-    nestjs_clients = request_json(
-        "GET",
-        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={NEW_CLIENT_ID}",
-        headers=headers,
-    ) or []
-    if nestjs_clients:
-        nestjs_client_id = nestjs_clients[0].get("id")
-        # Check if mapper already exists
-        mappers = request_json(
-            "GET",
-            f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{nestjs_client_id}/protocol-mappers/models",
-            headers=headers,
-        ) or []
-        mapper_exists = any(m.get("name") == "aud-myapp" for m in mappers)
-        if not mapper_exists:
-            mapper_payload = {
-                "name": "aud-myapp",
-                "protocol": "openid-connect",
-                "protocolMapper": "oidc-audience-mapper",
-                "consentRequired": False,
-                "config": {
-                    "included.client.audience": "myapp"
-                }
-            }
-            request(
-                "POST",
-                f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{nestjs_client_id}/protocol-mappers/models",
-                data=json.dumps(mapper_payload).encode("utf-8"),
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-            )
-            print("[BOOTSTRAP] Added aud-myapp audience mapper to nestjs client")
-        else:
-            print("[BOOTSTRAP] aud-myapp audience mapper already exists")
-
-    # Step 5: Setup smoke-ci service-account client
-    smoke_clients = request_json(
-        "GET",
-        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={SMOKE_CLIENT_ID}",
-        headers=headers,
-    ) or []
-    smoke_payload = json.dumps(SMOKE_CLIENT).encode("utf-8")
-    if not smoke_clients:
-        request(
-            "POST",
-            f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients",
-            data=smoke_payload,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-        )
-        print("[BOOTSTRAP] Created smoke-ci service-account client")
-    else:
-        smoke_client_id = smoke_clients[0].get("id")
-        if smoke_client_id:
-            request(
-                "PUT",
-                f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{smoke_client_id}",
-                data=smoke_payload,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-            )
-            print("[BOOTSTRAP] Updated smoke-ci service-account client")
-
-    # Step 6: Map admin role to smoke-ci service-account
-    smoke_clients = request_json(
-        "GET",
-        f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients?clientId={SMOKE_CLIENT_ID}",
-        headers=headers,
-    ) or []
-    if smoke_clients:
-        smoke_client_id = smoke_clients[0].get("id")
-        # Get the admin role
-        roles = request_json(
-            "GET",
-            f"{SERVER_URL}/admin/realms/{REALM_NAME}/roles",
-            headers=headers,
-        ) or []
-        admin_role = next((r for r in roles if r.get("name") == "admin"), None)
-        if admin_role:
-            admin_role_id = admin_role.get("id")
-            # Check if role is already mapped
-            role_mappings = request_json(
-                "GET",
-                f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{smoke_client_id}/service-account-user/role-mappings/realm",
-                headers=headers,
-            ) or []
-            role_exists = any(r.get("name") == "admin" for r in role_mappings)
-            if not role_exists:
-                request(
-                    "POST",
-                    f"{SERVER_URL}/admin/realms/{REALM_NAME}/clients/{smoke_client_id}/service-account-user/role-mappings/realm",
-                    data=json.dumps([admin_role]).encode("utf-8"),
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                print("[BOOTSTRAP] Mapped admin role to smoke-ci service-account")
-            else:
-                print("[BOOTSTRAP] Admin role already mapped to smoke-ci")
+    smoke_client = ensure_client(headers, SMOKE_CLIENT)
+    admin_role = ensure_admin_role(headers)
+    ensure_sv01_ready(headers, admin_role)
+    if smoke_client:
+        ensure_smoke_service_account_admin(headers, smoke_client["id"], admin_role)
+        print("[BOOTSTRAP] Ensured smoke-ci service-account admin role mapping")
 
 
 if __name__ == "__main__":

@@ -34,7 +34,9 @@
                                                     "protocolMapper":  "oidc-audience-mapper",
                                                     "consentRequired":  false,
                                                     "config":  {
-                                                                   "included.client.audience":  "myapp"
+                                                                   "included.client.audience":  "myapp",
+                                                                   "access.token.claim":  "true",
+                                                                   "id.token.claim":  "false"
                                                                }
                                                 }
                                             ]
@@ -48,6 +50,7 @@
                         "standardFlowEnabled":  true,
                         "directAccessGrantsEnabled":  true,
                         "serviceAccountsEnabled":  true,
+                        "secret":  "smoke-ci-secret",
                         "clientAuthenticatorType":  "client-secret-basic"
                     }
                 ],
@@ -66,8 +69,15 @@
                       "username":  "sv01",
                       "enabled":  true,
                       "emailVerified":  true,
+                      "email":  "sv01@example.local",
                       "firstName":  "SV",
                       "lastName":  "01",
+                      "requiredActions":  [
+
+                                          ],
+                      "realmRoles":  [
+                                         "admin"
+                                     ],
                       "credentials":  [
                                           {
                                               "type":  "password",
