@@ -1,0 +1,3 @@
+# HELP web_frontend_up Frontend availability
+# TYPE web_frontend_up gauge
+web_frontend_up 1
