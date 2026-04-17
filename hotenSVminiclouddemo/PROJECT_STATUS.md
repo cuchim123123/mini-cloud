@@ -125,26 +125,13 @@ All 9 required servers are running and verified:
   - SV003: Le Van C, DOB: 2002-09-10, Major: Information Systems
 - **Access**: `postgresql://postgres:postgres@relational-database-server:5432/studentdb`
 
-### 5️⃣ Keycloak - Realm & Client (0.5 points) ⏳ TODO
-- **Status**: Keycloak running, needs manual configuration
-- **Steps to Complete**:
-  1. Access http://localhost:8081
-  2. Login with admin / admin
-  3. Create new Realm: `realm_sv001`
-  4. Create 2 Users: `sv01`, `sv02`
-  5. Create Client: `flask-app` (Access Type: public)
-  6. Get token endpoint URL
-  7. Test `/secure` endpoint in backend
+### 5️⃣ Keycloak - Realm & Client (0.5 points) ✅ COMPLETED
+- **Status**: Completed via automated bootstrap on startup
+- **Result**: Realm `realm_sv001`, users `sv01`/`sv02`, and client `flask-app` are available
 
-### 6️⃣ MinIO - Upload files (0.5 points) ⏳ TODO
-- **Status**: MinIO running, needs file uploads
-- **Steps to Complete**:
-  1. Access http://localhost:9001 (minioadmin / minioadmin)
-  2. Create bucket: `profile-pics`
-  3. Upload avatar image
-  4. Create bucket: `documents`
-  5. Upload PDF file
-  6. Verify public URLs accessible
+### 6️⃣ MinIO - Upload files (0.5 points) ✅ COMPLETED
+- **Status**: Completed
+- **Result**: Buckets `profile-pics` and `documents` contain uploaded files
 
 ### 7️⃣ DNS - Add zone records (0.5 points) ✅ COMPLETED
 - **Status**: Records already configured in db.cloud.local
@@ -155,26 +142,18 @@ All 9 required servers are running and verified:
   - authentication-identity.cloud.local → 10.10.10.40
 
 ### 8️⃣ Prometheus - Add web target (0.5 points) ✅ COMPLETED
-- **Status**: web-frontend-server target added to prometheus.yml
+- **Status**: `web` job is healthy in Prometheus and reports `UP`
 - **Configuration**:
   ```yaml
   - job_name: 'web'
     static_configs:
       - targets: ['web-frontend-server:80']
   ```
-- **Verification**: Visit http://localhost:9090/targets to see both targets UP
+- **Verification**: Visit http://localhost:9090/targets to see the `web` target UP
 
-### 9️⃣ Grafana - Custom Dashboard (0.5 points) ⏳ TODO
-- **Status**: Grafana running, needs manual dashboard creation
-- **Steps to Complete**:
-  1. Access http://localhost:3000 (admin / admin)
-  2. Create New Dashboard named "System Health of SV_ID"
-  3. Add Panels:
-     - CPU Usage: `rate(node_cpu_seconds_total[5m])`
-     - Memory Usage: `node_memory_MemAvailable_bytes`
-     - Network Traffic: `rate(node_network_receive_bytes_total[5m])`
-  4. Set datasource to Prometheus
-  5. Save and screenshot
+### 9️⃣ Grafana - Custom Dashboard (0.5 points) ✅ COMPLETED
+- **Status**: Completed via Grafana API/bootstrap
+- **Result**: Dashboard `System Health of SV_ID` exists with Prometheus panels
 
 ### 🔟 API Gateway - /student/ route (0.5 points) ✅ COMPLETED
 - **Status**: Route configured in nginx.conf
@@ -187,7 +166,7 @@ All 9 required servers are running and verified:
 - **Test**: `Invoke-WebRequest -Uri http://localhost/student/ -UseBasicParsing`
 - **Result**: Returns student list from backend
 
-### ⓫ Load Balancing - Round Robin (0.5 points) ⏳ TODO
+### ⓫ Load Balancing - Round Robin (0.5 points) ✅ COMPLETED
   1. Create second web-frontend-server service (web-frontend-server2)
   2. Update nginx.conf with upstream block:
      ```nginx

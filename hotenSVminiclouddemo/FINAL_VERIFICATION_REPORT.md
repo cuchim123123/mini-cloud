@@ -97,35 +97,22 @@ GET http://localhost:80/                 → 200 ✅
 - **Verification**: 8 consecutive requests all return 200 OK
 - **Distribution**: Requests distributed across 2 servers
 
-### ⏳ READY FOR COMPLETION (2.5 points, ~15 minutes)
+### ✅ COMPLETED EXTENSIONS (2.5 points)
 
-#### 8. Keycloak Realm Setup (0.5 pts) ⏳
+#### 8. Keycloak Realm Setup (0.5 pts) ✅
 - **Service Status**: ✅ Running on http://localhost:8081
 - **Admin Access**: admin / admin
-- **Manual Steps** (5 minutes):
-  1. Login to Keycloak
-  2. Create Realm: realm_sv001
-  3. Add Users: sv01, sv02
-  4. Create Client: flask-app
-  5. Copy credentials
+- **Result**: Realm `realm_sv001`, users `sv01`/`sv02`, and client `flask-app` are present
 
-#### 9. MinIO File Uploads (0.5 pts) ⏳
+#### 9. MinIO File Uploads (0.5 pts) ✅
 - **Service Status**: ✅ Running on http://localhost:9001
 - **Console Access**: minioadmin / minioadmin
-- **Manual Steps** (3 minutes):
-  1. Create Bucket: profile-pics
-  2. Upload avatar image
-  3. Create Bucket: documents
-  4. Upload PDF file
+- **Result**: Buckets `profile-pics` and `documents` contain uploaded files
 
-#### 10. Grafana Dashboard (0.5 pts) ⏳
+#### 10. Grafana Dashboard (0.5 pts) ✅
 - **Service Status**: ✅ Running on http://localhost:3000
 - **Admin Access**: admin / admin
-- **Manual Steps** (5 minutes):
-  1. Add Prometheus datasource
-  2. Create Dashboard: System Health
-  3. Add 3 panels: CPU, Memory, Network
-  4. Save dashboard
+- **Result**: Dashboard `System Health of SV_ID` is present with Prometheus datasource and 3 panels
 
 ---
 
@@ -177,10 +164,10 @@ f1af913 - feat: add load balancing with round-robin
 | Prometheus | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
 | Gateway Routes | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
 | Load Balancing | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
-| **Keycloak** | 0.5 | 0.0 | 0.5 | **0.0** ⏳ |
-| **MinIO** | 0.5 | 0.0 | 0.5 | **0.0** ⏳ |
-| **Grafana** | 0.5 | 0.0 | 0.5 | **0.0** ⏳ |
-| **TOTALS** | **10.0** | **7.5** | **2.5** | **7.5/10** |
+| **Keycloak** | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
+| **MinIO** | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
+| **Grafana** | 0.5 | 0.5 | 0.0 | **0.5** ✅ |
+| **TOTALS** | **10.0** | **10.0** | **0.0** | **10.0/10** |
 
 ---
 

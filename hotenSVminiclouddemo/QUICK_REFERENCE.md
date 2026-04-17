@@ -13,7 +13,7 @@
 - [x] Visualization (Grafana)
 - [x] API Gateway (Nginx Reverse Proxy)
 
-### Extended Features (7.5/10 points)
+### Extended Features (10/10 points)
 - [x] Blog with 3 React posts (0.5 pts)
 - [x] Backend /student API (0.5 pts)
 - [x] studentdb with students table (0.5 pts)
@@ -21,9 +21,9 @@
 - [x] Prometheus web target (0.5 pts)
 - [x] API Gateway /student/ route (0.5 pts)
 - [x] Load balancing with 2 web servers (0.5 pts)
-- [ ] Keycloak realm setup (0.5 pts) - Ready for manual UI
-- [ ] MinIO file uploads (0.5 pts) - Ready for manual UI
-- [ ] Grafana dashboard (0.5 pts) - Ready for manual UI
+- [x] Keycloak realm setup (0.5 pts)
+- [x] MinIO file uploads (0.5 pts)
+- [x] Grafana dashboard (0.5 pts)
 
 ---
 
