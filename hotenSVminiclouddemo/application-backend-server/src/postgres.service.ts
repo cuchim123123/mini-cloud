@@ -1,14 +1,13 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, QueryResultRow } from 'pg';
+import { DATABASE_POOL } from './database/database.constants';
 
 @Injectable()
 export class PostgresService implements OnModuleDestroy {
   private readonly pool: Pool;
 
-  constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL
-    });
+  constructor(@Inject(DATABASE_POOL) pool: Pool) {
+    this.pool = pool;
   }
 
   async query<T extends QueryResultRow>(sql: string, params: unknown[] = []): Promise<T[]> {

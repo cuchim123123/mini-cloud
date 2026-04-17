@@ -38,10 +38,19 @@ services:
     container_name: application-backend-server
     depends_on:
       - relational-database-server
+      - authentication-identity-server
+      - object-storage-server
     environment:
       DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/minicloud
       STUDENT_DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/studentdb
       OIDC_AUDIENCE: myapp
+      KEYCLOAK_ISSUER_URL: http://authentication-identity-server:8080/realms/realm_sv001
+      KEYCLOAK_ADMIN_ROLE: admin
+      MINIO_PUBLIC_BASE_URL: http://localhost/storage
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: documents
+      MINIO_OBJECT_PREFIX: blog
     ports:
       - "8085:8081"
     networks:
