@@ -1,0 +1,59 @@
+{
+  "realm": "realm_sv001",
+  "enabled": true,
+  "displayName": "realm_sv001",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "clients": [
+    {
+      "clientId": "nestjs",
+      "name": "nestjs",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:8085",
+      "baseUrl": "http://localhost:8085",
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "sv01",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "SV",
+      "lastName": "01",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "sv01",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "sv02",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "SV",
+      "lastName": "02",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "sv02",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

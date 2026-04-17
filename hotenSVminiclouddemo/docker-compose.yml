@@ -15,7 +15,9 @@ services:
     ports:
       - "8080:80"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - web
     restart: unless-stopped
 
   web-frontend-server2:
@@ -25,7 +27,9 @@ services:
     ports:
       - "8088:80"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - web2
     restart: unless-stopped
 
   application-backend-server:
@@ -36,11 +40,14 @@ services:
       - relational-database-server
     environment:
       DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/minicloud
+      STUDENT_DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/studentdb
       OIDC_AUDIENCE: myapp
     ports:
       - "8085:8081"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - app-server
     restart: unless-stopped
 
   relational-database-server:
@@ -56,24 +63,58 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./relational-database-server/init:/docker-entrypoint-initdb.d:ro
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - db
     restart: unless-stopped
 
   authentication-identity-server:
     image: quay.io/keycloak/keycloak:latest
     container_name: authentication-identity-server
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HOSTNAME: localhost
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./authentication-identity-server/import:/opt/keycloak/data/import:ro
     ports:
       - "8081:8080"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - keycloak
     restart: unless-stopped
+
+  keycloak-bootstrap:
+    image: python:3.11-alpine
+    container_name: keycloak-bootstrap
+    depends_on:
+      - authentication-identity-server
+    entrypoint: ["python", "/opt/keycloak/bootstrap/bootstrap-keycloak.py"]
+    volumes:
+      - ./authentication-identity-server/bootstrap-keycloak.py:/opt/keycloak/bootstrap/bootstrap-keycloak.py:ro
+      - ./authentication-identity-server/import/realm_sv001-realm.json:/opt/keycloak/bootstrap/realm_sv001-realm.json:ro
+    networks:
+      - cloud-net
+    restart: "no"
+
+  grafana-bootstrap:
+    image: python:3.11-alpine
+    container_name: grafana-bootstrap
+    depends_on:
+      - monitoring-grafana-dashboard-server
+    entrypoint: ["python", "/opt/grafana/bootstrap/bootstrap-grafana.py"]
+    volumes:
+      - ./monitoring-grafana-dashboard-server/bootstrap-grafana.py:/opt/grafana/bootstrap/bootstrap-grafana.py:ro
+      - ./monitoring-grafana-dashboard-server/provisioning/dashboards/system-health.json:/opt/grafana/bootstrap/system-health.json:ro
+    networks:
+      - cloud-net
+    restart: "no"
 
   object-storage-server:
     image: minio/minio
@@ -88,7 +129,9 @@ services:
       - "9000:9000"
       - "9001:9001"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - minio
     restart: unless-stopped
 
   internal-dns-server:
@@ -97,11 +140,14 @@ services:
     ports:
       - "1053:53/udp"
     volumes:
+      - ./internal-dns-server/named.conf:/etc/bind/named.conf:ro
       - ./internal-dns-server/named.conf.options:/etc/bind/named.conf.options:ro
       - ./internal-dns-server/named.conf.local:/etc/bind/named.conf.local:ro
       - ./internal-dns-server/db.cloud.local:/etc/bind/db.cloud.local:ro
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - dns-server
     restart: unless-stopped
 
   monitoring-node-exporter-server:
@@ -114,23 +160,32 @@ services:
     restart: unless-stopped
 
   monitoring-prometheus-server:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     container_name: monitoring-prometheus-server
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring-prometheus-server/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - prometheus
     restart: unless-stopped
 
   monitoring-grafana-dashboard-server:
     image: grafana/grafana:latest
     container_name: monitoring-grafana-dashboard-server
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring-grafana-dashboard-server/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3000:3000"
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - grafana
     restart: unless-stopped
 
   api-gateway-proxy-server:
@@ -146,5 +201,7 @@ services:
     volumes:
       - ./api-gateway-proxy-server/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
-      - cloud-net
+      cloud-net:
+        aliases:
+          - proxy
     restart: unless-stopped
