@@ -73,3 +73,24 @@ curl -s http://localhost/api/hello
 curl -I http://localhost/auth/
 curl -s http://localhost/student/
 ```
+
+## 6) Blog/Admin smoke test (script)
+
+Script file: `scripts/smoke-blog-admin.ps1`
+
+Dry-run:
+
+```powershell
+Set-Location "D:\mini-cloud\mini-cloud\hotenSVminiclouddemo"
+.\scripts\smoke-blog-admin.ps1 -DryRun
+```
+
+Run thật với token admin:
+
+```powershell
+Set-Location "D:\mini-cloud\mini-cloud\hotenSVminiclouddemo"
+$token = "<KEYCLOAK_ACCESS_TOKEN>"
+.\scripts\smoke-blog-admin.ps1 -BaseUrl "http://localhost" -Token $token
+```
+
+Chi tiết xem thêm: `docs/BLOG_ADMIN_SMOKE_TEST.md`
