@@ -15,7 +15,7 @@ OLD_CLIENT_ID = "flask-app"
 NEW_CLIENT_ID = "nestjs"
 SMOKE_CLIENT_ID = "smoke-ci"
 ADMIN_ROLE_NAME = "admin"
-SMOKE_CLIENT_SECRET = "smoke-ci-secret"
+SMOKE_CLIENT_SECRET = os.environ.get("SMOKE_CLIENT_SECRET", "")
 REALM_FRONTEND_URL = "http://authentication-identity-server:8080/"
 SV01_USERNAME = "sv01"
 
@@ -283,6 +283,9 @@ def ensure_smoke_service_account_admin(headers, smoke_client_id, admin_role):
 
 
 def main():
+    if not SMOKE_CLIENT_SECRET:
+        raise SystemExit("SMOKE_CLIENT_SECRET is required for keycloak bootstrap")
+
     for _ in range(60):
         try:
             token = get_admin_token()

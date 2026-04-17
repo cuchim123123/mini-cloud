@@ -50,7 +50,6 @@
                         "standardFlowEnabled":  true,
                         "directAccessGrantsEnabled":  true,
                         "serviceAccountsEnabled":  true,
-                        "secret":  "smoke-ci-secret",
                         "clientAuthenticatorType":  "client-secret-basic"
                     }
                 ],

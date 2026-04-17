@@ -104,6 +104,10 @@ services:
     container_name: keycloak-bootstrap
     depends_on:
       - authentication-identity-server
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      SMOKE_CLIENT_SECRET: ${SMOKE_CLIENT_SECRET}
     entrypoint: ["python", "/opt/keycloak/bootstrap/bootstrap-keycloak.py"]
     volumes:
       - ./authentication-identity-server/bootstrap-keycloak.py:/opt/keycloak/bootstrap/bootstrap-keycloak.py:ro
