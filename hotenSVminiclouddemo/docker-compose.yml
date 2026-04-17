@@ -41,16 +41,16 @@ services:
       - authentication-identity-server
       - object-storage-server
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/minicloud
-      STUDENT_DATABASE_URL: postgresql://postgres:postgres@relational-database-server:5432/studentdb
-      OIDC_AUDIENCE: myapp
-      KEYCLOAK_ISSUER_URL: http://authentication-identity-server:8080/realms/realm_sv001
-      KEYCLOAK_ADMIN_ROLE: admin
-      MINIO_PUBLIC_BASE_URL: http://localhost/storage
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET_NAME: documents
-      MINIO_OBJECT_PREFIX: blog
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-relational-database-server}:${DB_PORT:-5432}/minicloud
+      STUDENT_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-relational-database-server}:${DB_PORT:-5432}/studentdb
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-myapp}
+      KEYCLOAK_ISSUER_URL: ${KEYCLOAK_ISSUER_URL:-http://authentication-identity-server:8080/realms/realm_sv001}
+      KEYCLOAK_ADMIN_ROLE: ${KEYCLOAK_ADMIN_ROLE:-admin}
+      MINIO_PUBLIC_BASE_URL: ${MINIO_PUBLIC_BASE_URL:-http://localhost/storage}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-documents}
+      MINIO_OBJECT_PREFIX: ${MINIO_OBJECT_PREFIX:-blog}
     ports:
       - "8085:8081"
     networks:
@@ -63,9 +63,9 @@ services:
     image: postgres:16-alpine
     container_name: relational-database-server
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -82,13 +82,13 @@ services:
     container_name: authentication-identity-server
     command: ["start-dev", "--import-realm"]
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT:-false}
+      KC_HTTP_ENABLED: ${KC_HTTP_ENABLED:-true}
     volumes:
       - ./authentication-identity-server/import:/opt/keycloak/data/import:ro
     ports:
@@ -130,12 +130,12 @@ services:
     restart: "no"
 
   object-storage-server:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: object-storage-server
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./object-storage-server/data:/data
     ports:
@@ -186,11 +186,11 @@ services:
     restart: unless-stopped
 
   monitoring-grafana-dashboard-server:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.0.0
     container_name: monitoring-grafana-dashboard-server
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - ./monitoring-grafana-dashboard-server/provisioning:/etc/grafana/provisioning:ro
     ports:
