@@ -30,7 +30,7 @@ Tất cả service chạy chung trên `cloud-net` để gọi nhau bằng tên c
 | `web-frontend-server` | Web static/SPA, trang chủ và blog | `8080` | `web-frontend-server/Dockerfile`, `web-frontend-server/nginx.conf` |
 | `web-frontend-server2` | Web replica để mô phỏng load balancing | `8088` | như trên |
 | `application-backend-server` | API backend, đọc JSON/DB, xử lý logic | `8085` | `application-backend-server/Dockerfile`, `src/*.ts` |
-| `relational-database-server` | PostgreSQL lưu dữ liệu `notes`, `studentdb.students` | `5432` | `relational-database-server/init/*.sql` |
+| `relational-database-server` | PostgreSQL lưu `notes`, `studentdb.students`, `posts` | `5432` | `relational-database-server/init/*.sql` |
 | `authentication-identity-server` | Keycloak OIDC / login / token | `8081` | `authentication-identity-server/import/realm_sv001-realm.json` |
 | `object-storage-server` | MinIO lưu object/bucket | `9000`, `9001` | `object-storage-server/data/` |
 | `internal-dns-server` | Bind9 zone nội bộ `cloud.local` | `1053/udp` | `internal-dns-server/db.cloud.local` |
@@ -77,6 +77,12 @@ curl -I http://localhost:8080/blog/
 - `GET /student` → trả danh sách sinh viên từ file JSON
 - `GET /students-db` → đọc dữ liệu từ PostgreSQL
 - `GET /platform/summary` → tổng hợp trạng thái service
+- `GET /posts?page=1&limit=6` → blog list có pagination
+- `GET /posts/:slug` → blog detail theo slug
+- `POST /posts` → tạo post (admin token)
+- `PUT /posts/:id` → cập nhật post (admin token)
+- `DELETE /posts/:id` → xoá post (admin token)
+- `GET /upload-url?filename=...&contentType=...` → presigned upload URL cho MinIO (admin token)
 
 **File quan trọng**
 - `src/app.controller.ts`
@@ -230,6 +236,7 @@ curl -i http://localhost:3000/api/health
 - `/` → `web_backend` (2 web servers)
 - `/api/` → backend
 - `/auth/` → Keycloak
+- `/storage/` → MinIO object API (dùng cho thumbnail upload/public object URL)
 - `/student/` → endpoint student của backend
 
 **File quan trọng**
@@ -240,6 +247,8 @@ curl -i http://localhost:3000/api/health
 curl -I http://localhost/
 curl -i http://localhost/api/hello
 curl -i http://localhost/auth/
+curl -i http://localhost/api/posts
+curl -i http://localhost/storage/minio/health/live
 curl -i http://localhost/student/
 ```
 
@@ -294,6 +303,20 @@ Container A
   -> query internal-dns-server
   -> resolve cloud.local names
   -> connect tới service bằng hostname nội bộ
+```
+
+### 4.6 Luồng publish blog (Admin)
+
+```text
+Admin Browser (/admin)
+  -> GET /api/upload-url (Bearer token)
+    -> Backend verify JWT + admin role
+    -> sign MinIO PUT URL
+  -> PUT /storage/<bucket>/<object-key>?X-Amz-* (upload thumbnail)
+  -> POST /api/posts (title/content/thumbnailUrl)
+    -> Backend generate unique slug
+    -> PostgreSQL insert posts row
+  -> Blog page (/blog) fetches paginated posts from /api/posts
 ```
 
 ---

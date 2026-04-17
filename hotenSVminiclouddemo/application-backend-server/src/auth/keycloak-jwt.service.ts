@@ -41,7 +41,24 @@ export class KeycloakJwtService {
   }
 
   getRoles(payload: JwtClaims): string[] {
-    return payload.realm_access?.roles ?? [];
+    const realmRoles = payload.realm_access?.roles ?? [];
+    const resourceRoles = Object.values(payload.resource_access ?? {})
+      .flatMap((entry) => entry.roles ?? []);
+
+    return Array.from(new Set([...realmRoles, ...resourceRoles]));
+  }
+
+  hasAnyRole(payload: JwtClaims, requiredRoles: string[]): boolean {
+    const normalizedRequired = requiredRoles
+      .map((role) => role.trim().toLowerCase())
+      .filter((role) => role.length > 0);
+
+    if (normalizedRequired.length === 0) {
+      return true;
+    }
+
+    const userRoleSet = new Set(this.getRoles(payload).map((role) => role.trim().toLowerCase()));
+    return normalizedRequired.every((role) => userRoleSet.has(role));
   }
 
   private async getVerificationKey(kid: string): Promise<KeyObject> {

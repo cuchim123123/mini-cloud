@@ -338,6 +338,20 @@ th {
   flex-wrap: wrap;
 }
 
+.token-meta {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.thumbnail-preview {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+}
+
 @media (max-width: 900px) {
   .card-grid {
     grid-template-columns: 1fr;

@@ -15,6 +15,12 @@ export type JwtClaims = {
   realm_access?: {
     roles?: string[];
   };
+  resource_access?: Record<
+    string,
+    {
+      roles?: string[];
+    }
+  >;
   preferred_username?: string;
   email?: string;
   sub?: string;

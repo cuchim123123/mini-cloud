@@ -16,6 +16,40 @@ function clearToken() {
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+function normalizeToken(rawToken) {
+  const trimmed = (rawToken ?? '').trim();
+  return trimmed.startsWith('Bearer ') ? trimmed.slice('Bearer '.length).trim() : trimmed;
+}
+
+function decodeJwtClaims(token) {
+  try {
+    const tokenParts = token.split('.');
+    if (tokenParts.length < 2) {
+      return null;
+    }
+
+    const payload = tokenParts[1]
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const decoded = window.atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+function formatExpiry(exp) {
+  if (typeof exp !== 'number') {
+    return 'Unknown';
+  }
+  const date = new Date(exp * 1000);
+  if (Number.isNaN(date.getTime())) {
+    return 'Invalid';
+  }
+  return date.toLocaleString();
+}
+
 function formatDate(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -42,7 +76,15 @@ export function AdminPage() {
   const { data, loading, error: loadError, reload } = useAsyncResource(() => fetchPosts(1, 50), []);
   const posts = data?.data ?? [];
 
-  const authReady = useMemo(() => token.trim().length > 0, [token]);
+  const parsedClaims = useMemo(() => decodeJwtClaims(token), [token]);
+  const tokenExpired = useMemo(() => {
+    if (!parsedClaims || typeof parsedClaims.exp !== 'number') {
+      return false;
+    }
+    return parsedClaims.exp * 1000 <= Date.now();
+  }, [parsedClaims]);
+
+  const authReady = useMemo(() => token.trim().length > 0 && !tokenExpired, [token, tokenExpired]);
 
   const resetForm = () => {
     setForm(initialFormState);
@@ -61,10 +103,24 @@ export function AdminPage() {
   };
 
   const onSaveToken = () => {
-    const nextToken = tokenInput.trim();
+    const nextToken = normalizeToken(tokenInput);
+    if (!nextToken) {
+      setError('Token is empty. Paste a valid Keycloak access token.');
+      setMessage('');
+      return;
+    }
+
+    const claims = decodeJwtClaims(nextToken);
+    if (!claims) {
+      setError('Token format is invalid.');
+      setMessage('');
+      return;
+    }
+
     saveToken(nextToken);
+    setTokenInput(nextToken);
     setToken(nextToken);
-    setMessage('Admin token saved to browser storage.');
+    setMessage('Admin token saved to browser storage and ready for API calls.');
     setError('');
   };
 
@@ -83,7 +139,18 @@ export function AdminPage() {
     }
 
     if (!authReady) {
-      setError('Save an admin bearer token before uploading.');
+      setError('Save a valid non-expired admin bearer token before uploading.');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files are allowed for thumbnails.');
+      return;
+    }
+
+    const maxFileSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxFileSizeBytes) {
+      setError('Thumbnail size must be 5MB or smaller.');
       return;
     }
 
@@ -123,7 +190,7 @@ export function AdminPage() {
     event.preventDefault();
 
     if (!authReady) {
-      setError('Save an admin bearer token before creating or updating posts.');
+      setError('Save a valid non-expired admin bearer token before creating or updating posts.');
       return;
     }
 
@@ -132,10 +199,15 @@ export function AdminPage() {
     setError('');
 
     const payload = {
-      title: form.title,
-      content: form.content,
+      title: form.title.trim(),
+      content: form.content.trim(),
       thumbnailUrl: form.thumbnailUrl || null
     };
+
+    if (!payload.title || !payload.content) {
+      setError('Title and content are required.');
+      return;
+    }
 
     try {
       if (editingId) {
@@ -205,7 +277,7 @@ export function AdminPage() {
             rows={4}
             value={tokenInput}
             onChange={(event) => setTokenInput(event.target.value)}
-            placeholder="Bearer token"
+            placeholder="Paste access token (with or without Bearer prefix)"
           />
           <div className="action-row">
             <button type="button" className="primary-btn" onClick={onSaveToken} disabled={busy}>
@@ -215,7 +287,11 @@ export function AdminPage() {
               Clear Token
             </button>
           </div>
-          <p className="card-subtitle">Status: {authReady ? 'Ready' : 'Not configured'}</p>
+          <p className="card-subtitle">Status: {authReady ? 'Ready' : tokenExpired ? 'Expired token' : 'Not configured'}</p>
+          <div className="token-meta">
+            <p className="card-subtitle">Subject: {parsedClaims?.preferred_username ?? parsedClaims?.sub ?? 'Unknown'}</p>
+            <p className="card-subtitle">Expires: {formatExpiry(parsedClaims?.exp)}</p>
+          </div>
         </div>
 
         <div>
@@ -253,6 +329,8 @@ export function AdminPage() {
                 placeholder="https://..."
               />
             </label>
+
+            {form.thumbnailUrl ? <img src={form.thumbnailUrl} alt="Thumbnail preview" className="thumbnail-preview" /> : null}
 
             <label className="field">
               <span>Upload Thumbnail (optional)</span>
