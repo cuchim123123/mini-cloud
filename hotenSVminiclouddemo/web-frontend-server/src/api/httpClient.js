@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function requestJson(path, options = {}) {
+export async function request(path, options = {}) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -27,7 +27,16 @@ export async function requestJson(path, options = {}) {
       throw new ApiError(`Request failed: ${response.status}`, response.status);
     }
 
-    return await response.json();
+    if (response.status === 204) {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    return await response.text();
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new ApiError('Request timed out', 408);
@@ -41,4 +50,12 @@ export async function requestJson(path, options = {}) {
   } finally {
     window.clearTimeout(timeoutId);
   }
+}
+
+export async function requestJson(path, options = {}) {
+  const payload = await request(path, options);
+  if (payload === null || typeof payload !== 'object') {
+    throw new ApiError('Expected JSON response', 500);
+  }
+  return payload;
 }

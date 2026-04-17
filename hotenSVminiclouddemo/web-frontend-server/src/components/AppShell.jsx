@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 const navItems = [
   { to: '/', label: 'Overview' },
   { to: '/operations', label: 'Operations' },
-  { to: '/blog', label: 'Engineering Blog' }
+  { to: '/blog', label: 'Engineering Blog' },
+  { to: '/admin', label: 'Admin Panel' }
 ];
 
 export function AppShell({ children }) {
